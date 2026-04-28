@@ -113,6 +113,64 @@ docker compose restart mqtt-broker
 
 If you are operating a publisher or subscriber outside this fork, restart or reconnect that client after the broker restart if its credentials or access scope changed.
 
+## Script Order
+
+When you use the local helper scripts, the safe order is:
+
+Before step 1:
+
+- make sure you are editing the repo-local source-of-truth files, not the live container files
+- if you are changing an existing working device, note the current username, topic block, and plain-text password before you replace them
+
+1. Set or update the password entry in `mosquitto/passwords`.
+
+```bash
+./scripts/mosquitto-hash-password.sh washer-plug 'A3D6173E9C3178F18C01858EBF866CF6' ./mosquitto/passwords
+```
+
+2. Set or update the ACL block in `mosquitto/aclfile`.
+
+```bash
+./scripts/mosquitto-acl-user.sh set washer-plug "topic write shellies/washing-plug/#" "topic read shellies/washing-plug/relay/0/command"
+```
+
+Below step 2:
+
+- if the password and ACL changes look correct, it is a good time to commit them before deployment
+- committing here gives you a clean rollback point if step 4 or step 5 fails
+
+Example:
+
+```bash
+git add mosquitto/passwords mosquitto/aclfile
+git commit -m "Update MQTT credentials and ACL for washer-plug"
+```
+
+3. Sync the broker stack to the Raspberry Pi host.
+
+```bash
+./scripts/rsync-mosquitto-to-pi.sh --host 192.168.178.58 --user fraank
+```
+
+4. Restart `mqtt-broker` on the Raspberry Pi host.
+
+```bash
+ssh fraank@192.168.178.58 'cd /mnt/nvme/mqtt && docker compose restart mqtt-broker'
+```
+
+5. Reconnect the device or test client with the plain-text password you chose.
+
+```bash
+mosquitto_sub -h 192.168.178.58 -p 1883 -u washer-plug -P 'A3D6173E9C3178F18C01858EBF866CF6' -t '#' -v
+```
+
+Important:
+
+- `mosquitto-hash-password.sh` takes a human-readable password and writes the broker hash line
+- `mosquitto-acl-user.sh` manages the topic block for one username
+- `rsync-mosquitto-to-pi.sh` copies the host-side source-of-truth files to the Raspberry Pi
+- the MQTT client or Shelly device must use the plain-text password, not the hash stored in `mosquitto/passwords`
+
 ## What Not To Do
 
 - do not add users only inside the container
@@ -136,6 +194,18 @@ publisher-node-4:<hashed-password>
 
 Do not store plain-text passwords in this file. It must contain Mosquitto password hashes like the existing entries.
 
+To generate a hash line from a human-readable password with the local helper:
+
+```bash
+./scripts/mosquitto-hash-password.sh publisher-node-4 publisher-node-4-secret
+```
+
+To update or append that user directly in `mosquitto/passwords`:
+
+```bash
+./scripts/mosquitto-hash-password.sh publisher-node-4 publisher-node-4-secret ./mosquitto/passwords
+```
+
 To hash one password with the Mosquitto container tooling, use:
 
 ```bash
@@ -157,6 +227,14 @@ topic write sensors/node-4/#
 ```
 
 This lets that account publish only under `sensors/node-4/...`.
+
+To manage one user's ACL block with the local helper:
+
+```bash
+./scripts/mosquitto-acl-user.sh get publisher-node-4
+./scripts/mosquitto-acl-user.sh set publisher-node-4 "topic write sensors/node-4/#"
+./scripts/mosquitto-acl-user.sh remove publisher-node-4
+```
 
 ### 3. Start the broker
 
@@ -249,6 +327,63 @@ To use `/mnt/nvme/mqtt/mosquitto` instead of the repo-local `./mosquitto` direct
 MOSQUITTO_HOST_CONFIG_DIR=/mnt/nvme/mqtt/mosquitto docker compose up -d
 ```
 
+## Use A Technitium DNS Name
+
+If you want devices to connect to the broker as `mqtt.<zone>` instead of a raw IP address:
+
+1. run this stack on the Raspberry Pi host that will accept MQTT on port `1883`
+2. set these compose variables on that host:
+
+```bash
+MQTT_HOSTNAME=mqtt
+MQTT_ZONE=example.lan
+```
+
+3. create a Technitium DNS `A` record:
+
+```text
+mqtt.example.lan -> <raspberry-pi-host-ip>
+```
+
+Important:
+
+- Technitium must point `mqtt.<zone>` to the Raspberry Pi host IP, not the container IP
+- the published port remains `1883`, so devices should use `mqtt.<zone>:1883`
+- `hostname` and `domainname` in Compose do not create external DNS records by themselves
+- this repo does not manage Technitium; the DNS record must be created in your DNS server separately
+
+## Sync Host Files To A Raspberry Pi
+
+If the broker runs on a Raspberry Pi, you can sync this repo's broker stack to the Pi with:
+
+```bash
+./scripts/rsync-mosquitto-to-pi.sh --host raspberrypi.local --dry-run
+./scripts/rsync-mosquitto-to-pi.sh --host raspberrypi.local
+```
+
+This pushes:
+
+- `docker-compose.yml` to the remote stack directory
+- `mosquitto/` to the remote stack directory as `mosquitto/`
+
+Defaults:
+
+- remote user: `pi`
+- remote directory: `/mnt/nvme/mqtt`
+
+Override them if needed:
+
+```bash
+./scripts/rsync-mosquitto-to-pi.sh --host 192.168.1.44 --user mqttadmin --remote-dir /srv/mosquitto
+```
+
+This layout matches the default compose mount:
+
+- remote compose file: `/mnt/nvme/mqtt/docker-compose.yml`
+- remote config directory: `/mnt/nvme/mqtt/mosquitto`
+
+After syncing updated compose or broker files, restart the broker on the Raspberry Pi so the running container reloads them.
+
 ## Validation Checklist
 
 After adding or changing broker users, verify:
@@ -256,6 +391,30 @@ After adding or changing broker users, verify:
 - `docker compose logs -f mqtt-broker`
 - the expected client can connect with the new username/password
 - the client can only publish or subscribe to the topic scope allowed by its ACL
+
+## Listen To All Topics
+
+This repo already includes a read-only subscriber example in `mosquitto/aclfile`:
+
+```text
+user subscriber-topics
+topic read #
+topic read $SYS/#
+```
+
+Use that account to watch all broker traffic from a console:
+
+```bash
+mosquitto_sub -h 127.0.0.1 -p 1883 -u subscriber-topics -P '<subscriber-password>' -t '#' -v
+```
+
+If you want broker status topics too, subscribe to both topic spaces:
+
+```bash
+mosquitto_sub -h 127.0.0.1 -p 1883 -u subscriber-topics -P '<subscriber-password>' -t '#' -t '$SYS/#' -v
+```
+
+From another machine on the LAN, replace `127.0.0.1` with the Raspberry Pi host name or IP, for example `pi5.home.arpa`.
 
 ## Common Mistakes
 

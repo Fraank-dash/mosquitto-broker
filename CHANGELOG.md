@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.1-fork.1 - 2026-04-28
+
+### Topic: Broker Operations
+- Added helper scripts for hashing Mosquitto passwords, managing per-user ACL blocks, and syncing the broker stack to a Raspberry Pi host.
+- Documented the broker auth update flow, Raspberry Pi sync flow, and local restart requirements in `docs/secure-broker-howto.md`.
+- Added `docs/shelly-gen1-mqtt-onboarding.md` with a broker-local Shelly Gen1 onboarding guide.
+
+### Topic: Broker Runtime
+- Added optional Compose hostname and domain configuration through `MQTT_HOSTNAME` and `MQTT_ZONE`.
+- Expanded the README with broker deployment, DNS, and Raspberry Pi sync guidance.
+- Replaced the sample password and ACL entries with the current broker user set, including admin and subscriber accounts.
+
 ## 0.9.1-fork.0 - 2026-04-27
 
 ### Topic: Fork Bootstrap
