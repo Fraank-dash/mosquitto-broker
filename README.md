@@ -24,7 +24,11 @@ The detailed fork provenance is recorded in [FORKNOTE.md](FORKNOTE.md).
 - [mosquitto/mosquitto.conf](mosquitto/mosquitto.conf)
 - [mosquitto/passwords](mosquitto/passwords)
 - [mosquitto/aclfile](mosquitto/aclfile)
+- [scripts/rsync-mosquitto-to-pi.sh](scripts/rsync-mosquitto-to-pi.sh)
+- [scripts/mosquitto-hash-password.sh](scripts/mosquitto-hash-password.sh)
+- [scripts/mosquitto-acl-user.sh](scripts/mosquitto-acl-user.sh)
 - [docs/secure-broker-howto.md](docs/secure-broker-howto.md)
+- [docs/shelly-gen1-mqtt-onboarding.md](docs/shelly-gen1-mqtt-onboarding.md)
 - [CHANGELOG.md](CHANGELOG.md)
 
 ## Quick Start
@@ -41,6 +45,10 @@ Follow broker logs:
 docker compose logs -f mqtt-broker
 ```
 
+Add a Shelly Gen1 device:
+
+See [docs/shelly-gen1-mqtt-onboarding.md](docs/shelly-gen1-mqtt-onboarding.md) for a broker-local onboarding guide and a worked `Shelly Plug / PlugS` example.
+
 Stop the broker:
 
 ```bash
@@ -56,6 +64,29 @@ If you prefer a stable host path such as `/mnt/nvme/mqtt/mosquitto`, override th
 ```bash
 MOSQUITTO_HOST_CONFIG_DIR=/mnt/nvme/mqtt/mosquitto docker compose up -d
 ```
+
+If you want clients to reach the broker as `mqtt.<zone>`, set:
+
+```bash
+MQTT_HOSTNAME=mqtt
+MQTT_ZONE=example.lan
+```
+
+Then create a Technitium DNS `A` record for `mqtt.example.lan` that points to the Raspberry Pi host IP running this stack.
+
+To push the local broker stack to a Raspberry Pi, use:
+
+```bash
+./scripts/rsync-mosquitto-to-pi.sh --host raspberrypi.local --dry-run
+./scripts/rsync-mosquitto-to-pi.sh --host raspberrypi.local
+```
+
+This syncs:
+
+- `docker-compose.yml`
+- `mosquitto/`
+
+into the remote stack directory, which defaults to `/mnt/nvme/mqtt`.
 
 ## Runtime Model
 

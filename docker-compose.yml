@@ -2,6 +2,8 @@ services:
   mqtt-broker:
     image: eclipse-mosquitto:2
     container_name: mosquitto-broker-local
+    hostname: ${MQTT_HOSTNAME:-mqtt}
+    domainname: ${MQTT_ZONE:-local}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
