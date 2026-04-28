@@ -1,42 +1,18 @@
-user washer-plug
-topic write #
+user publisher-node-1
+topic write sensors/node-1/#
 
-user server-plug
-topic write #
+user publisher-node-2
+topic write sensors/node-2/#
 
-user iot-plug
-topic write #
+user publisher-node-3
+topic write sensors/node-3/#
 
-user workspace-plug
-topic write #
+user subscriber-ingest
+topic read sensors/+/temp
+topic read sensors/+/humidity
+topic read sensors/+/power
+topic read sensors/+/energy
 
-user entertainment-plug
-topic write #
-
-user fridge-plug
-topic write #
-
-user boiler-plug
-topic write #
-
-user dishwasher-plug
-topic write #
-
-user coffee-plug
-topic write #
-
-user admin
-topic read #
-topic read $SYS/#
-
-user subscriber-broker
-topic read $SYS/#
-
-user subscriber-ingest-power
-topic read shellies/+/relay/0/power
-topic read shellies/+/relay/0/energy
-topic read shellies/+/relay/0
-
-user subscriber-ingest-topics
+user subscriber-topics
 topic read #
 topic read $SYS/#
