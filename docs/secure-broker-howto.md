@@ -9,13 +9,14 @@ It focuses on the broker runtime, password file management, ACL management, and 
 The fork is driven by these files:
 
 - `docker-compose.yml`
-- `mosquitto/mosquitto.conf`
-- `mosquitto/passwords`
-- `mosquitto/aclfile`
+- `mosquitto.conf`
+- `passwords`
+- `passwords.example`
+- `aclfile`
 
 The host-mounted config source directory is:
 
-- default: `./mosquitto`
+- default: repository root
 - override: `${MOSQUITTO_HOST_CONFIG_DIR}`
 
 ## Source Of Truth
@@ -51,10 +52,12 @@ Avoid workflows like:
 
 ## Files
 
-- `mosquitto/mosquitto.conf`
-- `mosquitto/passwords`
-- `mosquitto/aclfile`
+- `mosquitto.conf`
+- `passwords`
+- `passwords.example`
+- `aclfile`
 - `docker-compose.yml`
+- `docs/private-branch-workflow.md`
 
 ## Quick Rules
 
@@ -63,17 +66,26 @@ Avoid workflows like:
 - every subscriber should get its own MQTT username and password unless you intentionally choose a shared subscriber account
 - subscribers should receive only the read ACLs they actually need
 - adding one publisher usually means updating two broker files:
-  - `mosquitto/passwords`
-  - `mosquitto/aclfile`
+  - `passwords`
+  - `aclfile`
+
+## Public Template Rule
+
+The public branch does not carry real password hashes.
+
+- `passwords` is an intentionally empty active file slot
+- `passwords.example` is the public template
+- private or environment-specific values belong on `private/main` or in a local-only file realization step
 
 ## Safe Username/Password Workflow
 
 Use this sequence whenever you add a new MQTT account.
 
-1. Edit `mosquitto/passwords` on the host
-2. Edit `mosquitto/aclfile` on the host
-3. Restart `mqtt-broker`
-4. Restart or reconnect any client that should use the new credentials
+1. Populate `passwords` from `passwords.example` or switch to your private branch
+2. Edit `passwords` on the host
+3. Edit `aclfile` on the host
+4. Restart `mqtt-broker`
+5. Restart or reconnect any client that should use the new credentials
 
 ## Sequence Diagram: Add One Publisher
 
@@ -82,7 +94,7 @@ This diagram shows the safe flow for adding one new publisher account in the cur
 ```mermaid
 sequenceDiagram
     actor Operator
-    participant HostAuth as Host auth files<br/>./mosquitto or ${MOSQUITTO_HOST_CONFIG_DIR}
+    participant HostAuth as Host auth files<br/>repo root or ${MOSQUITTO_HOST_CONFIG_DIR}
     participant Compose as Docker Compose
     participant Broker as mqtt-broker container
     participant MQTT as Mosquitto runtime
@@ -184,7 +196,7 @@ Use this path when the broker is not running yet, or when you are preparing the 
 
 ### 1. Add the publisher credentials
 
-Append a new line in `mosquitto/passwords`.
+Append a new line in `passwords`.
 
 Follow the existing format:
 
@@ -213,11 +225,11 @@ docker run --rm eclipse-mosquitto:2 \
   sh -c 'mosquitto_passwd -b /tmp/passwords publisher-node-4 publisher-node-4-secret && cat /tmp/passwords'
 ```
 
-This prints one `username:hash` line that you can copy into `mosquitto/passwords`.
+This prints one `username:hash` line that you can copy into `passwords`.
 
 ### 2. Add the publisher ACL
 
-Append a new block in `mosquitto/aclfile`.
+Append a new block in `aclfile`.
 
 Example:
 
@@ -239,6 +251,7 @@ To manage one user's ACL block with the local helper:
 ### 3. Start the broker
 
 ```bash
+cp passwords.example passwords
 docker compose up -d
 ```
 
@@ -248,16 +261,16 @@ This is the safe operational path for the current fork setup.
 
 ### What must be restarted
 
-- restart `mqtt-broker` after changing `mosquitto/passwords`
-- restart `mqtt-broker` after changing `mosquitto/aclfile`
-- restart `mqtt-broker` after changing `mosquitto/mosquitto.conf`
+- restart `mqtt-broker` after changing `passwords`
+- restart `mqtt-broker` after changing `aclfile`
+- restart `mqtt-broker` after changing `mosquitto.conf`
 
 The running broker does not automatically consume edits from the host-side config source because those files are copied into the live config directory only during broker startup.
 
 ### Recommended sequence
 
-1. Edit `mosquitto/passwords`
-2. Edit `mosquitto/aclfile`
+1. Edit `passwords`
+2. Edit `aclfile`
 3. Restart `mqtt-broker`
 4. Restart or reconnect the affected client
 
@@ -273,8 +286,8 @@ The cleanest pattern is one publisher account per device or logical simulator.
 
 For five new device simulators:
 
-1. add five hashed entries in `mosquitto/passwords`
-2. add five ACL blocks in `mosquitto/aclfile`
+1. add five hashed entries in `passwords`
+2. add five ACL blocks in `aclfile`
 3. restart `mqtt-broker`
 4. reconnect or restart those five clients
 
@@ -296,7 +309,7 @@ Example: add `sensors/node-1/pressure`.
 
 ### Needed only when the ACL is narrower
 
-If you are using a narrower ACL than `sensors/node-1/#`, extend the ACL block in `mosquitto/aclfile` and restart the broker.
+If you are using a narrower ACL than `sensors/node-1/#`, extend the ACL block in `aclfile` and restart the broker.
 
 ## Add A New Subscriber
 
@@ -321,7 +334,7 @@ Be conservative with broad read access.
 
 ## Optional External Host Path
 
-To use `/mnt/nvme/mqtt/mosquitto` instead of the repo-local `./mosquitto` directory:
+To use `/mnt/nvme/mqtt/mosquitto` instead of the repo root:
 
 ```bash
 MOSQUITTO_HOST_CONFIG_DIR=/mnt/nvme/mqtt/mosquitto docker compose up -d
@@ -421,4 +434,4 @@ From another machine on the LAN, replace `127.0.0.1` with the Raspberry Pi host 
 - adding a password entry but forgetting the ACL block
 - editing host-side files and forgetting to restart the broker
 - testing only client reconnect behavior without reloading the broker config
-- storing plain-text passwords in `mosquitto/passwords`
+- storing plain-text passwords in `passwords`

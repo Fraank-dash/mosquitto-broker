@@ -16,4 +16,4 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ${MOSQUITTO_HOST_CONFIG_DIR:-./mosquitto}:/mosquitto/config-src:ro
+      - ${MOSQUITTO_HOST_CONFIG_DIR:-.}:/mosquitto/config-src:ro

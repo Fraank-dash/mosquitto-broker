@@ -12,6 +12,11 @@
 - Expanded the README with broker deployment, DNS, and Raspberry Pi sync guidance.
 - Replaced the sample password and ACL entries with the current broker user set, including admin and subscriber accounts.
 
+### Topic: Public/Private Workflow
+- Reworked the public branch so the active broker files live at the repository root, allowing the repo to be mounted directly as a submodule-backed config directory.
+- Removed tracked development password hashes from the public branch and replaced them with an empty `passwords` file plus a `passwords.example` template.
+- Added documentation for running one local checkout against both a public `origin` remote and a private `private` remote with a dedicated `private/main` branch.
+
 ## 0.9.1-fork.0 - 2026-04-27
 
 ### Topic: Fork Bootstrap

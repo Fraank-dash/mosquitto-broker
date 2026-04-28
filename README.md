@@ -5,10 +5,10 @@ Standalone fork of the local Mosquitto broker slice from `mqtt2postgres`.
 This repo is intended to own only the broker-facing runtime assets:
 
 - Mosquitto configuration
-- password file
+- password file template and active password file slot
 - ACL file
 - broker-only Docker Compose setup
-- broker-specific operational docs
+- broker-specific operational docs and helper scripts
 
 ## Fork Baseline
 
@@ -21,13 +21,15 @@ The detailed fork provenance is recorded in [FORKNOTE.md](FORKNOTE.md).
 ## Contents
 
 - [docker-compose.yml](docker-compose.yml)
-- [mosquitto/mosquitto.conf](mosquitto/mosquitto.conf)
-- [mosquitto/passwords](mosquitto/passwords)
-- [mosquitto/aclfile](mosquitto/aclfile)
+- [mosquitto.conf](mosquitto.conf)
+- [passwords](passwords)
+- [passwords.example](passwords.example)
+- [aclfile](aclfile)
 - [scripts/rsync-mosquitto-to-pi.sh](scripts/rsync-mosquitto-to-pi.sh)
 - [scripts/mosquitto-hash-password.sh](scripts/mosquitto-hash-password.sh)
 - [scripts/mosquitto-acl-user.sh](scripts/mosquitto-acl-user.sh)
 - [docs/secure-broker-howto.md](docs/secure-broker-howto.md)
+- [docs/private-branch-workflow.md](docs/private-branch-workflow.md)
 - [docs/shelly-gen1-mqtt-onboarding.md](docs/shelly-gen1-mqtt-onboarding.md)
 - [CHANGELOG.md](CHANGELOG.md)
 
@@ -36,6 +38,7 @@ The detailed fork provenance is recorded in [FORKNOTE.md](FORKNOTE.md).
 Start the broker:
 
 ```bash
+cp passwords.example passwords
 docker compose up -d
 ```
 
@@ -57,9 +60,11 @@ docker compose down
 
 ## Host Config Path
 
-By default this fork mounts its own repo-local `./mosquitto` directory into the container.
+By default this fork mounts its own repo root into the container as the broker
+config source.
 
-If you prefer a stable host path such as `/mnt/nvme/mqtt/mosquitto`, override the mount path with:
+If you prefer a separate host path containing `mosquitto.conf`, `passwords`,
+and `aclfile`, override the mount path with:
 
 ```bash
 MOSQUITTO_HOST_CONFIG_DIR=/mnt/nvme/mqtt/mosquitto docker compose up -d
@@ -72,7 +77,8 @@ MQTT_HOSTNAME=mqtt
 MQTT_ZONE=example.lan
 ```
 
-Then create a Technitium DNS `A` record for `mqtt.example.lan` that points to the Raspberry Pi host IP running this stack.
+Then create a Technitium DNS `A` record for `mqtt.example.lan` that points to
+the Raspberry Pi host IP running this stack.
 
 To push the local broker stack to a Raspberry Pi, use:
 
@@ -84,7 +90,11 @@ To push the local broker stack to a Raspberry Pi, use:
 This syncs:
 
 - `docker-compose.yml`
-- `mosquitto/`
+- `mosquitto.conf`
+- `passwords`
+- `aclfile`
+- `scripts/`
+- `docs/`
 
 into the remote stack directory, which defaults to `/mnt/nvme/mqtt`.
 
@@ -96,9 +106,19 @@ This fork keeps the same secure broker startup pattern as the parent repo:
 - the container copies `mosquitto.conf`, `passwords`, and `aclfile` into `/mosquitto/config`
 - the copied files get restricted permissions before Mosquitto starts
 
-That means host-side files are the source of truth, and broker auth changes require a broker restart.
+That means host-side files are the source of truth, and broker auth changes
+require a broker restart.
+
+## Public And Private Changes
+
+The public `main` branch is intended to stay safe for use as a submodule target.
+
+- `passwords` is tracked as an empty active file slot
+- `passwords.example` is the public template
+- real password hashes belong on your private branch or in local uncommitted setup
+
+See [docs/private-branch-workflow.md](docs/private-branch-workflow.md).
 
 ## Notes
 
-- the included `passwords` and `aclfile` are development/test assets carried over from the source repo
 - this fork is broker-only; it does not include the subscriber, publisher, or TimescaleDB stack from `mqtt2postgres`

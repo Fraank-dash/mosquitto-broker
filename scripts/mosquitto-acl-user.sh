@@ -19,13 +19,13 @@ Topic lines for set must be complete ACL lines, for example:
   "topic read shellies/washing-plug/relay/0/command"
 
 Defaults:
-  target file: ./mosquitto/aclfile
+  target file: ./aclfile
 
 Examples:
   ./scripts/mosquitto-acl-user.sh get washing-plug
   ./scripts/mosquitto-acl-user.sh remove washing-plug
   ./scripts/mosquitto-acl-user.sh set washing-plug "topic write shellies/washing-plug/#" "topic read shellies/washing-plug/relay/0/command"
-  ./scripts/mosquitto-acl-user.sh set washing-plug "topic write #" "topic read #" --target-file ./mosquitto/aclfile
+  ./scripts/mosquitto-acl-user.sh set washing-plug "topic write #" "topic read #" --target-file ./aclfile
 EOF
 }
 
@@ -46,7 +46,7 @@ fi
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(CDPATH= cd -- "${script_dir}/.." && pwd)
-default_target_file="${repo_root}/mosquitto/aclfile"
+default_target_file="${repo_root}/aclfile"
 target_file="$default_target_file"
 
 get_block() {

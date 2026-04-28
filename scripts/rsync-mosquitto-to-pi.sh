@@ -72,7 +72,11 @@ fi
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 compose_file="${repo_root}/docker-compose.yml"
-source_dir="${repo_root}/mosquitto/"
+config_files=(
+  "${repo_root}/mosquitto.conf"
+  "${repo_root}/passwords"
+  "${repo_root}/aclfile"
+)
 remote="${user}@${host}"
 
 if ! command -v rsync >/dev/null 2>&1; then
@@ -80,15 +84,17 @@ if ! command -v rsync >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -d "$source_dir" ]]; then
-  echo "Source directory not found: $source_dir" >&2
-  exit 1
-fi
-
 if [[ ! -f "$compose_file" ]]; then
   echo "Compose file not found: $compose_file" >&2
   exit 1
 fi
+
+for config_file in "${config_files[@]}"; do
+  if [[ ! -f "$config_file" ]]; then
+    echo "Config file not found: $config_file" >&2
+    exit 1
+  fi
+done
 
 rsync_args=(
   --archive
@@ -105,16 +111,24 @@ if [[ "$dry_run" == "true" ]]; then
   rsync_args+=(--dry-run)
 fi
 
-echo "Syncing ${source_dir} -> ${remote}:${remote_dir}/"
+echo "Syncing broker files -> ${remote}:${remote_dir}/"
 mkdir_cmd="mkdir -p '${remote_dir}'"
 ssh -p "$port" "$remote" "$mkdir_cmd"
 rsync "${rsync_args[@]}" "${compose_file}" "${remote}:${remote_dir}/docker-compose.yml"
-rsync "${rsync_args[@]}" "${source_dir}" "${remote}:${remote_dir}/mosquitto/"
+for config_file in "${config_files[@]}"; do
+  rsync "${rsync_args[@]}" "${config_file}" "${remote}:${remote_dir}/"
+done
+rsync "${rsync_args[@]}" "${repo_root}/docs/" "${remote}:${remote_dir}/docs/"
+rsync "${rsync_args[@]}" "${repo_root}/scripts/" "${remote}:${remote_dir}/scripts/"
 
 echo
 echo "Sync complete."
 echo "Remote stack path: ${remote_dir}"
 echo "Files synced:"
 echo "  - docker-compose.yml"
-echo "  - mosquitto/"
+echo "  - mosquitto.conf"
+echo "  - passwords"
+echo "  - aclfile"
+echo "  - docs/"
+echo "  - scripts/"
 echo "If you changed docker-compose.yml, mosquitto.conf, passwords, or aclfile, restart the broker on the Raspberry Pi."

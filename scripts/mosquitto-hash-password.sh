@@ -12,7 +12,7 @@ Print one Mosquitto password-file line, or write it into a target file:
 
 Examples:
   ./scripts/mosquitto-hash-password.sh washer-plug washer-plug-secret
-  ./scripts/mosquitto-hash-password.sh washer-plug washer-plug-secret ./mosquitto/passwords
+  ./scripts/mosquitto-hash-password.sh washer-plug washer-plug-secret ./passwords
 EOF
 }
 
